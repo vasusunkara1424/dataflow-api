@@ -2,16 +2,15 @@ const express = require('express')
 const cors = require('cors')
 const { Pool } = require('pg')
 const { WebSocketServer } = require('ws')
-const { LogicalReplicationService, PgoutputPlugin } = require('pg-logical-replication')
+const OpenAI = require('openai')
 
 const app = express()
 app.use(cors())
 app.use(express.json())
 
-const pool = new Pool({ connectionString: process.env.DATABASE_URL,
-})
+const pool = new Pool({ connectionString: process.env.DATABASE_URL })
 
-// WebSocket server on port 4001
+// WebSocket server
 const wss = new WebSocketServer({ port: 4001 })
 const clients = new Set()
 
@@ -25,33 +24,6 @@ function broadcast(event) {
   const msg = JSON.stringify(event)
   clients.forEach(ws => ws.send(msg))
 }
-
-// CDC Listener
-const service = new LogicalReplicationService({
-})
-
-const plugin = new PgoutputPlugin({
-  protoVersion: 1,
-  publicationNames: ['datagrid_pub'],
-})
-
-service.on('data', (lsn, log) => {
-  if (log.tag === 'insert') {
-    console.log('✅ INSERT:', log.relation.name, log.new)
-    broadcast({ type: 'insert', table: log.relation.name, data: log.new })
-  }
-  if (log.tag === 'update') {
-    console.log('✏️  UPDATE:', log.relation.name, log.new)
-    broadcast({ type: 'update', table: log.relation.name, data: log.new })
-  }
-  if (log.tag === 'delete') {
-    console.log('🗑️  DELETE:', log.relation.name)
-    broadcast({ type: 'delete', table: log.relation.name, data: log.old })
-  }
-})
-
-service.subscribe(plugin, 'datagrid_slot')
-console.log('👂 CDC listener active...')
 
 // REST Routes
 app.get('/', (req, res) => {
@@ -77,11 +49,7 @@ app.get('/api/stats', async (req, res) => {
   })
 })
 
-app.listen(4000, () => {
-})
-
 // AI Auto SQL
-const OpenAI = require('openai')
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 
 app.post('/api/ai/sql', async (req, res) => {
@@ -92,11 +60,11 @@ app.post('/api/ai/sql', async (req, res) => {
       messages: [
         {
           role: 'system',
-          content: `You are a SQL expert. Convert natural language questions to PostgreSQL queries.
-The database has these tables:
+          content: `You are a SQL expert. Convert natural language to PostgreSQL queries.
+Tables:
 - pipelines (id, name, status, records, latency, created_at)
 - sources (id, name, type, status, created_at)
-Return ONLY the SQL query, nothing else. No markdown, no explanation.`
+Return ONLY the SQL query, nothing else.`
         },
         { role: 'user', content: question }
       ]
@@ -107,4 +75,9 @@ Return ONLY the SQL query, nothing else. No markdown, no explanation.`
   } catch (err) {
     res.json({ success: false, error: err.message })
   }
+})
+
+app.listen(4000, () => {
+  console.log('🚀 DataFlow API running on http://localhost:4000')
+  console.log('🔌 WebSocket server running on ws://localhost:4001')
 })
