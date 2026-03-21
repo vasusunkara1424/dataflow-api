@@ -1,0 +1,23 @@
+{
+  "name": "dataflow-api",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "cors": "^2.8.6",
+    "express": "^5.2.1",
+    "nodemailer": "^8.0.3",
+    "nodemon": "^3.1.14",
+    "openai": "^6.32.0",
+    "pg": "^8.20.0",
+    "pg-logical-replication": "^2.3.1",
+    "uuid": "^13.0.0",
+    "ws": "^8.20.0"
+  }
+}
