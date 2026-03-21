@@ -1,0 +1,3 @@
+OPENAI_API_KEY=cd ~/Desktop/dataflow-api
+echo OPENAI_API_KEY=sk-your-key-here >> .enve
+OPENAI_API_KEY=sk-your-key-here

@@ -8,10 +8,7 @@ const app = express()
 app.use(cors())
 app.use(express.json())
 
-const pool = new Pool({
-  database: 'dataflow_db',
-  host: 'localhost',
-  port: 5432,
+const pool = new Pool({ connectionString: process.env.DATABASE_URL,
 })
 
 // WebSocket server on port 4001
@@ -31,9 +28,6 @@ function broadcast(event) {
 
 // CDC Listener
 const service = new LogicalReplicationService({
-  database: 'dataflow_db',
-  host: 'localhost',
-  port: 5432,
 })
 
 const plugin = new PgoutputPlugin({
@@ -84,6 +78,33 @@ app.get('/api/stats', async (req, res) => {
 })
 
 app.listen(4000, () => {
-  console.log('🚀 DataFlow API running on http://localhost:4000')
-  console.log('🔌 WebSocket server running on ws://localhost:4001')
+})
+
+// AI Auto SQL
+const OpenAI = require('openai')
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+
+app.post('/api/ai/sql', async (req, res) => {
+  const { question } = req.body
+  try {
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        {
+          role: 'system',
+          content: `You are a SQL expert. Convert natural language questions to PostgreSQL queries.
+The database has these tables:
+- pipelines (id, name, status, records, latency, created_at)
+- sources (id, name, type, status, created_at)
+Return ONLY the SQL query, nothing else. No markdown, no explanation.`
+        },
+        { role: 'user', content: question }
+      ]
+    })
+    const sql = completion.choices[0].message.content.trim()
+    const result = await pool.query(sql)
+    res.json({ success: true, sql, rows: result.rows })
+  } catch (err) {
+    res.json({ success: false, error: err.message })
+  }
 })
