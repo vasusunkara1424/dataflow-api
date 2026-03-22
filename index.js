@@ -82,3 +82,223 @@ app.listen(4000, () => {
   console.log('🔌 WebSocket server running on ws://localhost:4001')
 })
 //cache bust Sat Mar 21 19:24:49 EDT 2026
+
+// Team Workspaces
+app.get('/api/workspaces', async (req, res) => {
+  const result = await pool.query('SELECT * FROM workspaces ORDER BY created_at DESC')
+  res.json(result.rows)
+})
+
+app.post('/api/workspaces', async (req, res) => {
+  const { name, userId, email } = req.body
+  const slug = name.toLowerCase().replace(/\s+/g, '-') + '-' + Date.now()
+  const workspace = await pool.query(
+    'INSERT INTO workspaces (name, slug) VALUES ($1, $2) RETURNING *',
+    [name, slug]
+  )
+  await pool.query(
+    'INSERT INTO workspace_members (workspace_id, user_id, email, role) VALUES ($1, $2, $3, $4)',
+    [workspace.rows[0].id, userId, email, 'owner']
+  )
+  res.json({ success: true, workspace: workspace.rows[0] })
+})
+
+app.post('/api/workspaces/:id/invite', async (req, res) => {
+  const { email } = req.body
+  const { id } = req.params
+  await pool.query(
+    'INSERT INTO workspace_members (workspace_id, user_id, email, role) VALUES ($1, $2, $3, $4)',
+    [id, 'pending', email, 'member']
+  )
+  res.json({ success: true, message: `Invited ${email}` })
+})
+
+app.get('/api/workspaces/:id/members', async (req, res) => {
+  const result = await pool.query(
+    'SELECT * FROM workspace_members WHERE workspace_id = $1',
+    [req.params.id]
+  )
+  res.json(result.rows)
+})
+
+// Team Workspaces
+app.get('/api/workspaces', async (req, res) => {
+  const result = await pool.query('SELECT * FROM workspaces ORDER BY created_at DESC')
+  res.json(result.rows)
+})
+
+app.post('/api/workspaces', async (req, res) => {
+  const { name, userId, email } = req.body
+  const slug = name.toLowerCase().replace(/\s+/g, '-') + '-' + Date.now()
+  const workspace = await pool.query(
+    'INSERT INTO workspaces (name, slug) VALUES ($1, $2) RETURNING *',
+    [name, slug]
+  )
+  await pool.query(
+    'INSERT INTO workspace_members (workspace_id, user_id, email, role) VALUES ($1, $2, $3, $4)',
+    [workspace.rows[0].id, userId, email, 'owner']
+  )
+  res.json({ success: true, workspace: workspace.rows[0] })
+})
+
+app.post('/api/workspaces/:id/invite', async (req, res) => {
+  const { email } = req.body
+  const { id } = req.params
+  await pool.query(
+    'INSERT INTO workspace_members (workspace_id, user_id, email, role) VALUES ($1, $2, $3, $4)',
+    [id, 'pending', email, 'member']
+  )
+  res.json({ success: true, message: `Invited ${email}` })
+})
+
+app.get('/api/workspaces/:id/members', async (req, res) => {
+  const result = await pool.query(
+    'SELECT * FROM workspace_members WHERE workspace_id = $1',
+    [req.params.id]
+  )
+  res.json(result.rows)
+})
+
+// Team Workspaces
+app.post('/api/workspaces', async (req, res) => {
+  const { name, userId, email } = req.body
+  const slug = name.toLowerCase().replace(/\s+/g, '-')
+  try {
+    const ws = await pool.query(
+      'INSERT INTO workspaces (name, slug) VALUES ($1, $2) RETURNING *',
+      [name, slug]
+    )
+    await pool.query(
+      'INSERT INTO workspace_members (workspace_id, user_id, email, role) VALUES ($1, $2, $3, $4)',
+      [ws.rows[0].id, userId, email, 'owner']
+    )
+    res.json({ success: true, workspace: ws.rows[0] })
+  } catch (err) {
+    res.json({ success: false, error: err.message })
+  }
+})
+
+app.get('/api/workspaces/:userId', async (req, res) => {
+  const { userId } = req.params
+  try {
+    const result = await pool.query(
+      `SELECT w.*, wm.role FROM workspaces w
+       JOIN workspace_members wm ON w.id = wm.workspace_id
+       WHERE wm.user_id = $1`,
+      [userId]
+    )
+    res.json({ success: true, workspaces: result.rows })
+  } catch (err) {
+    res.json({ success: false, error: err.message })
+  }
+})
+
+app.post('/api/workspaces/:id/invite', async (req, res) => {
+  const { id } = req.params
+  const { email } = req.body
+  try {
+    await pool.query(
+      'INSERT INTO workspace_members (workspace_id, user_id, email, role) VALUES ($1, $2, $3, $4)',
+      [id, email, email, 'member']
+    )
+    res.json({ success: true, message: `${email} invited!` })
+  } catch (err) {
+    res.json({ success: false, error: err.message })
+  }
+})
+
+// Team Workspaces
+app.post('/api/workspaces', async (req, res) => {
+  const { name, userId, email } = req.body
+  const slug = name.toLowerCase().replace(/\s+/g, '-')
+  try {
+    const ws = await pool.query(
+      'INSERT INTO workspaces (name, slug) VALUES ($1, $2) RETURNING *',
+      [name, slug]
+    )
+    await pool.query(
+      'INSERT INTO workspace_members (workspace_id, user_id, email, role) VALUES ($1, $2, $3, $4)',
+      [ws.rows[0].id, userId, email, 'owner']
+    )
+    res.json({ success: true, workspace: ws.rows[0] })
+  } catch (err) {
+    res.json({ success: false, error: err.message })
+  }
+})
+
+app.get('/api/workspaces/:userId', async (req, res) => {
+  const { userId } = req.params
+  try {
+    const result = await pool.query(
+      `SELECT w.*, wm.role FROM workspaces w
+       JOIN workspace_members wm ON w.id = wm.workspace_id
+       WHERE wm.user_id = $1`,
+      [userId]
+    )
+    res.json({ success: true, workspaces: result.rows })
+  } catch (err) {
+    res.json({ success: false, error: err.message })
+  }
+})
+
+app.post('/api/workspaces/:id/invite', async (req, res) => {
+  const { id } = req.params
+  const { email } = req.body
+  try {
+    await pool.query(
+      'INSERT INTO workspace_members (workspace_id, user_id, email, role) VALUES ($1, $2, $3, $4)',
+      [id, email, email, 'member']
+    )
+    res.json({ success: true, message: `${email} invited!` })
+  } catch (err) {
+    res.json({ success: false, error: err.message })
+  }
+})
+
+// Team Workspaces
+app.post('/api/workspaces', async (req, res) => {
+  const { name, userId, email } = req.body
+  const slug = name.toLowerCase().replace(/\s+/g, '-')
+  try {
+    const ws = await pool.query(
+      'INSERT INTO workspaces (name, slug) VALUES ($1, $2) RETURNING *',
+      [name, slug]
+    )
+    await pool.query(
+      'INSERT INTO workspace_members (workspace_id, user_id, email, role) VALUES ($1, $2, $3, $4)',
+      [ws.rows[0].id, userId, email, 'owner']
+    )
+    res.json({ success: true, workspace: ws.rows[0] })
+  } catch (err) {
+    res.json({ success: false, error: err.message })
+  }
+})
+
+app.get('/api/workspaces/:userId', async (req, res) => {
+  const { userId } = req.params
+  try {
+    const result = await pool.query(
+      `SELECT w.*, wm.role FROM workspaces w
+       JOIN workspace_members wm ON w.id = wm.workspace_id
+       WHERE wm.user_id = $1`,
+      [userId]
+    )
+    res.json({ success: true, workspaces: result.rows })
+  } catch (err) {
+    res.json({ success: false, error: err.message })
+  }
+})
+
+app.post('/api/workspaces/:id/invite', async (req, res) => {
+  const { id } = req.params
+  const { email } = req.body
+  try {
+    await pool.query(
+      'INSERT INTO workspace_members (workspace_id, user_id, email, role) VALUES ($1, $2, $3, $4)',
+      [id, email, email, 'member']
+    )
+    res.json({ success: true, message: `${email} invited!` })
+  } catch (err) {
+    res.json({ success: false, error: err.message })
+  }
+})
