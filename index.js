@@ -69,7 +69,7 @@ Return ONLY the SQL query, nothing else.`
         { role: 'user', content: question }
       ]
     })
-    const sql = completion.choices[0].message.content.trim()
+    const sql = completion.choices[0].message.content.trim().replace(/```sql\n?/g, "").replace(/```/g, "").trim()
     const result = await pool.query(sql)
     res.json({ success: true, sql, rows: result.rows })
   } catch (err) {
