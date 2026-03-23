@@ -357,3 +357,46 @@ app.patch('/api/alerts/:id/resolve', async (req, res) => {
   await pool.query('UPDATE alerts SET resolved = TRUE WHERE id = $1', [req.params.id])
   res.json({ success: true })
 })
+
+// Usage Stats
+app.post('/api/usage', async (req, res) => {
+  const { userId, eventType, metadata } = req.body
+  try {
+    await pool.query(
+      'INSERT INTO usage_events (user_id, event_type, metadata) VALUES ($1, $2, $3)',
+      [userId, eventType, JSON.stringify(metadata || {})]
+    )
+    res.json({ success: true })
+  } catch (err) {
+    res.json({ success: false, error: err.message })
+  }
+})
+
+app.get('/api/stats/user/:userId', async (req, res) => {
+  const { userId } = req.params
+  try {
+    const pipelines = await pool.query('SELECT COUNT(*) FROM pipelines')
+    const sources = await pool.query('SELECT COUNT(*) FROM sources')
+    const alerts = await pool.query('SELECT COUNT(*) FROM alerts WHERE resolved = FALSE')
+    const aiQueries = await pool.query(
+      "SELECT COUNT(*) FROM usage_events WHERE user_id = $1 AND event_type = 'ai_query'",
+      [userId]
+    )
+    const recentEvents = await pool.query(
+      "SELECT * FROM usage_events WHERE user_id = $1 ORDER BY created_at DESC LIMIT 10",
+      [userId]
+    )
+    res.json({
+      success: true,
+      stats: {
+        pipelines: pipelines.rows[0].count,
+        sources: sources.rows[0].count,
+        activeAlerts: alerts.rows[0].count,
+        aiQueries: aiQueries.rows[0].count,
+        recentEvents: recentEvents.rows
+      }
+    })
+  } catch (err) {
+    res.json({ success: false, error: err.message })
+  }
+})
