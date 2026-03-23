@@ -305,3 +305,55 @@ app.post('/api/workspaces/:id/invite', async (req, res) => {
 // Sun Mar 22 15:46:28 EDT 2026
 // Sun Mar 22 15:47:46 EDT 2026
 // Sun Mar 22 15:47:52 EDT 2026
+
+// Anomaly Detection
+async function detectAnomalies() {
+  try {
+    const pipelines = await pool.query('SELECT * FROM pipelines')
+    for (const pipeline of pipelines.rows) {
+      const issues = []
+
+      if (pipeline.latency > 100) {
+        issues.push({ type: 'high_latency', message: `Pipeline "${pipeline.name}" has high latency: ${pipeline.latency}ms`, severity: 'warning' })
+      }
+      if (pipeline.status === 'error') {
+        issues.push({ type: 'pipeline_error', message: `Pipeline "${pipeline.name}" is in error state!`, severity: 'critical' })
+      }
+      if (pipeline.records === 0) {
+        issues.push({ type: 'no_records', message: `Pipeline "${pipeline.name}" has zero records — possible data loss!`, severity: 'critical' })
+      }
+
+      for (const issue of issues) {
+        const existing = await pool.query(
+          'SELECT id FROM alerts WHERE pipeline_id = $1 AND type = $2 AND resolved = FALSE',
+          [pipeline.id, issue.type]
+        )
+        if (existing.rows.length === 0) {
+          await pool.query(
+            'INSERT INTO alerts (pipeline_id, type, message, severity) VALUES ($1, $2, $3, $4)',
+            [pipeline.id, issue.type, issue.message, issue.severity]
+          )
+          console.log('🚨 Anomaly detected:', issue.message)
+          broadcast({ type: 'alert', alert: issue })
+        }
+      }
+    }
+  } catch (err) {
+    console.error('Anomaly detection error:', err.message)
+  }
+}
+
+// Run anomaly detection every 60 seconds
+setInterval(detectAnomalies, 60000)
+detectAnomalies()
+
+// Alerts API
+app.get('/api/alerts', async (req, res) => {
+  const result = await pool.query('SELECT * FROM alerts ORDER BY created_at DESC LIMIT 50')
+  res.json(result.rows)
+})
+
+app.patch('/api/alerts/:id/resolve', async (req, res) => {
+  await pool.query('UPDATE alerts SET resolved = TRUE WHERE id = $1', [req.params.id])
+  res.json({ success: true })
+})
